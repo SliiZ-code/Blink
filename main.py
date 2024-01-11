@@ -2,15 +2,16 @@ import os
 import requests
 import glob
 import time
-from moviepy.editor import ImageClip, AudioFileClip, VideoFileClip, concatenate_videoclips
+from moviepy.editor import *
+from subtitles import srtToJson
 from openai import OpenAI
 import base64
 
-startTime=time.time()
-
 client=OpenAI()
 
-topic=input("Insert the subject of the top 5 video :")
+topic=input("Insert the subject of the top 5 video : ")
+
+startTime=time.time()
 
 print("Generating the message")
 
@@ -61,8 +62,7 @@ parts=find_script(message)
 images_descriptions=find_images(message)
 images_descriptions.pop(0)
 
-for part in parts:
-    print(part)
+print(message)
 
 
 files = glob.glob('Images/*.png')
@@ -77,9 +77,15 @@ files = glob.glob('Videos/*.mp4')
 for f in files:
     os.remove(f)
 
+files = glob.glob('Subtitles/*.srt')
+for f in files:
+    os.remove(f)
+
 print("Generating images")
 
 for i in range(len(images_descriptions)):
+    print(f"Image {i+1} :")
+    print(images_descriptions[i])
     response = requests.post(
         f"https://api.stability.ai/v1/generation/stable-diffusion-xl-1024-v1-0/text-to-image",
         headers={
@@ -107,6 +113,8 @@ for i in range(len(images_descriptions)):
 print("Generating audios")
 
 for i in range(len(parts)):
+    print(f"Audio {i} :")
+    print(parts[i])
     response = client.audio.speech.create(
         model="tts-1",
         voice="alloy",
@@ -152,6 +160,35 @@ video_clips=[VideoFileClip(file) for file in videos]
 final_clip = concatenate_videoclips(video_clips)
 final_clip.write_videofile(f"{topic}.mp4")
 
+print("Generating transcription")
+
+audio_file = open(f"{topic}.mp4", "rb")
+transcript = client.audio.transcriptions.create(
+  model="whisper-1",
+  file=audio_file,
+  language="en",
+  response_format="srt",
+)
+
+
+with open("Subtitles/subtitles.srt", "w") as f:
+        f.write(transcript)
+
+print("Generating subtitles")
+
+json=srtToJson("Subtitles/subtitles.srt")
+
+subtitles_list=[]
+subtitles_list.append(VideoFileClip(f"{topic}.mp4"))
+for sentence in json:
+        subtitle=TextClip(txt=sentence["text"], font='Mont', fontsize=24, color='white')
+        subtitle=subtitle.set_start(sentence["startTime"]).set_duration((sentence["endTime"]-sentence["startTime"])).set_position(("center","bottom"))
+        subtitles_list.append(subtitle)
+
+subs=CompositeVideoClip(subtitles_list)
+
+subs.write_videofile(f"{topic}_with_subs.mp4")
 endTime=time.time()
 timer=endTime-startTime
+print("[END]")
 print("Generated in ",timer," seconds")
