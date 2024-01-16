@@ -1,32 +1,25 @@
 from moviepy.editor import ImageClip, AudioFileClip, VideoFileClip, concatenate_videoclips
+import time
 
-def add_static_image_to_audio(image_path, audio_path, output_path):
-    """Create and save a video file to `output_path` after combining a static image that is located in `image_path` with an audio file in `audio_path`"""
-    # create the audio clip object
-    audio_clip = AudioFileClip(audio_path)
+print("Generating the video")
 
-    # create the image clip object
-    image_clip = ImageClip(image_path)
+startTimeVideo=time.time()
+videos=[]
 
-    # use set_audio method from image clip to combine the audio with the image
-    video_clip = image_clip.set_audio(audio_clip)
+def createVideoFromImageAndAudio(imagePath, audioPath):
+    videoClip = ImageClip(imagePath).set_audio(AudioFileClip(audioPath)).set_duration(AudioFileClip(audioPath).duration)
+    videoClip.fps=1
+    return videoClip
 
-    # specify the duration of the new clip to be the duration of the audio clip
-    video_clip.duration = audio_clip.duration
+for i in range(0,7):
+    if i==0:
+        videos.append(createVideoFromImageAndAudio("image0.png","Temp/Audios/audio0.mp3"))
+    else :
+        videos.append(createVideoFromImageAndAudio(f"Temp/Images/image{i}.png",f"Temp/Audios/audio{i}.mp3"))
 
-    # set the FPS to 1
-    video_clip.fps = 1
-    
-    # write the resulting video clip
-    video_clip.write_videofile(output_path)
+print(type(videos[0]))
+final_clip = concatenate_videoclips(videos)
+final_clip.write_videofile(f"Temp/finalVideo.mp4")
 
-add_static_image_to_audio("image0.png","Audios/audio1.mp3","video0.mp4")
-add_static_image_to_audio("Images/image1.png","Audios/audio2.mp3","video1.mp4")
-add_static_image_to_audio("Images/image2.png","Audios/audio3.mp3","video2.mp4")
-add_static_image_to_audio("Images/image3.png","Audios/audio4.mp3","video3.mp4")
-add_static_image_to_audio("Images/image4.png","Audios/audio5.mp3","video4.mp4")
-
-videos=["video0.mp4","video1.mp4","video2.mp4","video3.mp4","video4.mp4"]
-video_clips=[VideoFileClip(file) for file in videos]
-final_clip = concatenate_videoclips(video_clips)
-final_clip.write_videofile("videoFinal.mp4")
+endTimeVideo=time.time()
+print("Video generated in",endTimeVideo-startTimeVideo," seconds")
